@@ -112,6 +112,18 @@ class basic_any {
         return nullptr;
     }
 
+    template<typename Type>
+    void initialize_ref([[maybe_unused]] Type& value) {
+        using plain_type = std::remove_cv_t<std::remove_reference_t<Type>>;
+
+        info = &type_id<plain_type>();
+        vtable = basic_vtable<plain_type>;
+
+        mode = std::is_const_v<std::remove_reference_t<Type>> ? any_policy::cref : any_policy::ref;
+        // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
+        instance = std::addressof(value);
+    }
+
     template<typename Type, typename... Args>
     void initialize([[maybe_unused]] Args &&...args) {
         if constexpr(!std::is_void_v<Type>) {
@@ -175,6 +187,14 @@ public:
     explicit basic_any(std::in_place_type_t<Type>, Args &&...args)
         : instance{} {
         initialize<Type>(std::forward<Args>(args)...);
+    }
+
+    template<typename Type>
+    static basic_any create_ref(Type &&value) {
+        basic_any any{};
+        any.instance = {};
+        any.initialize_ref<Type>(std::forward<Type>(value));
+        return any;
     }
 
     /**

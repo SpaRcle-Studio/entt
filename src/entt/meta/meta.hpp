@@ -219,6 +219,26 @@ class meta_any {
     }
 
 public:
+    template<typename Type> static meta_any create_ref(Type& ref) {
+        meta_any data;
+
+        data.storage = any::create_ref(ref);
+        data.ctx = {&locator<meta_ctx>::value_or()},
+        data.node = {internal::resolve<std::remove_cv_t<std::remove_reference_t<Type>>>(internal::meta_context::from(*data.ctx))},
+        data.vtable = {&basic_vtable<std::remove_cv_t<std::remove_reference_t<Type>>>};
+        return data;
+    }
+
+    template<typename Type> static meta_any create_cref(const Type& ref) {
+        meta_any data;
+
+        data.storage = any::create_ref(ref);
+        data.ctx = {&locator<meta_ctx>::value_or()},
+        data.node = {internal::resolve<std::remove_cv_t<std::remove_reference_t<Type>>>(internal::meta_context::from(*data.ctx))},
+        data.vtable = {&basic_vtable<std::remove_cv_t<std::remove_reference_t<Type>>>};
+        return data;
+    }
+
     /*! Default constructor. */
     meta_any() = default;
 
@@ -478,6 +498,15 @@ public:
         return static_cast<Type>(*instance);
     }
 
+    /*! @copydoc cast */
+    template<typename Type>
+    [[nodiscard]] std::remove_const_t<Type>& cast_ref() {
+        // forces const on non-reference types to make them work also with wrappers for const references
+        Type* instance = const_cast<Type*>(try_cast<std::remove_reference_t<const Type>>());
+        ENTT_ASSERT(instance, "Invalid instance");
+        return *static_cast<std::remove_const_t<Type>*>(instance);
+    }
+
     /**
      * @brief Converts an object in such a way that a given cast becomes viable.
      * @param type Meta type to which the cast is requested.
@@ -639,6 +668,14 @@ public:
      * @return The underlyig storage.
      */
     [[nodiscard]] const any &base() const noexcept {
+        return storage;
+    }
+
+    /**
+     * @brief Returns the underlying storage.
+     * @return The underlyig storage.
+     */
+    [[nodiscard]] any &base() noexcept {
         return storage;
     }
 
